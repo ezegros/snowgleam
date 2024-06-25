@@ -1,0 +1,16 @@
+name = "snowgleam"
+version = "0.1.0"
+licences = ["Apache-2.0"]
+description = "Gleam version of the Twitter's snowflake format for unique IDs."
+
+gleam = ">= 0.32.0"
+
+repository = { type = "github", user = "ezegros", repo = "snowgleam" }
+
+[dependencies]
+gleam_stdlib = ">= 0.34.0 and < 2.0.0"
+gleam_erlang = ">= 0.25.0 and < 1.0.0"
+gleam_otp = ">= 0.10.0 and < 1.0.0"
+
+[dev-dependencies]
+gleeunit = ">= 1.0.0 and < 2.0.0"
