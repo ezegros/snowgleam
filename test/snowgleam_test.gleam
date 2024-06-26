@@ -66,3 +66,14 @@ pub fn snowgeam_generate_lazy_test() {
   |> list.length()
   |> should.equal(5000)
 }
+
+pub fn snowgleam_generate_lazy_with_set_timestamp_test() {
+  let assert Ok(generator) =
+    snowgleam.new_generator()
+    |> snowgleam.with_timestamp(1_420_070_400_000)
+    |> snowgleam.start()
+
+  let id = generator |> snowgleam.generate_lazy()
+
+  should.equal(id |> int.to_string(), "550441269457846272")
+}

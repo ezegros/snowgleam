@@ -63,12 +63,21 @@ pub fn with_process_id(node: Node, process_id: Int) -> Node {
   Node(..node, process_id: process_id)
 }
 
+/// Sets timestamp for the generator. Useful for lazy generation. It should not
+/// be used along with normal generation.
+pub fn with_timestamp(node: Node, last_ts: Int) -> Node {
+  Node(..node, last_ts: last_ts)
+}
+
 /// Starts the generator.
 pub fn start(node: Node) -> Result(Generator, String) {
   case node.epoch > erlang.system_time(erlang.Millisecond) {
     True -> Error("epoch must be in the past")
     False -> {
-      let node = Node(..node, last_ts: node |> get_timestamp)
+      let node = case node.last_ts {
+        0 -> Node(..node, last_ts: node |> get_timestamp)
+        _ -> Node(..node, last_ts: node.last_ts |> int.subtract(node.epoch))
+      }
 
       node
       |> actor.start(handle_message)
