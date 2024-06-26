@@ -13,6 +13,10 @@ pub const default_epoch: Int = 31_546_800
 /// The maximum number of IDs that can be generated in a single millisecond.
 const max_index: Int = 4096
 
+/// Type alias for the actor subject.
+pub type Subject =
+  process.Subject(Message)
+
 /// The messages that the generator actor can receive.
 pub opaque type Message {
   Generate(reply_with: process.Subject(Int))
@@ -57,7 +61,7 @@ pub fn with_process_id(generator: Generator, process_id: Int) -> Generator {
 }
 
 /// Starts the generator.
-pub fn start(generator: Generator) -> Result(process.Subject(Message), String) {
+pub fn start(generator: Generator) -> Result(Subject, String) {
   case generator.epoch > erlang.system_time(erlang.Millisecond) {
     True -> Error("epoch must be in the past")
     False -> {
@@ -90,7 +94,7 @@ pub fn start(generator: Generator) -> Result(process.Subject(Message), String) {
 ///
 /// let id = snowgleam.generate(generator)
 /// ```
-pub fn generate(channel: process.Subject(Message)) -> Int {
+pub fn generate(channel: Subject) -> Int {
   actor.call(channel, Generate, 10)
 }
 
