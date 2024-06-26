@@ -13,30 +13,38 @@ pub const default_epoch: Int = 31_546_800
 /// The maximum number of IDs that can be generated in a single millisecond.
 const max_index: Int = 4096
 
-/// Type alias for the actor subject.
-pub type Subject =
+/// Type alias for the genarator message subject. It is the actual
+/// public interface for the generator and should be used to interact with it.
+///
+/// # Examples
+/// ```gleam
+/// import gleam/snowgleam
+///
+/// pub type Context {
+///   Context(generator: snowgleam.Generator)
+/// }
+///
+/// let assert Ok(generator) = snowgleam.new_generator() |> snowgleam.start()
+/// let context = Context(generator: generator)
+/// let id = context.generator |> snowgleam.generate()
+/// ```
+pub type Generator =
   process.Subject(Message)
 
-/// The messages that the generator actor can receive.
+/// The messages that the generator can receive.
 pub opaque type Message {
   Generate(reply_with: process.Subject(Int))
 }
 
-/// The Snowflake ID generator.
-/// This is not meant to be used directly but with the provided builder functions.
-pub opaque type Generator {
-  Generator(
-    epoch: Int,
-    worker_id: Int,
-    process_id: Int,
-    last_ts: Int,
-    index: Int,
-  )
+/// The Snowflake ID generator state.
+/// It handles the internal state of the generator and should not be used directly.
+pub opaque type State {
+  State(epoch: Int, worker_id: Int, process_id: Int, last_ts: Int, index: Int)
 }
 
 /// Creates a new Snowflake ID generator with default settings.
-pub fn new_generator() -> Generator {
-  Generator(
+pub fn new_generator() -> State {
+  State(
     epoch: default_epoch,
     worker_id: 0,
     process_id: 0,
@@ -46,29 +54,28 @@ pub fn new_generator() -> Generator {
 }
 
 /// Sets the epoch for the generator.
-pub fn with_epoch(generator: Generator, epoch: Int) -> Generator {
-  Generator(..generator, epoch: epoch)
+pub fn with_epoch(state: State, epoch: Int) -> State {
+  State(..state, epoch: epoch)
 }
 
 /// Sets the worker ID for the generator.
-pub fn with_worker_id(generator: Generator, worker_id: Int) -> Generator {
-  Generator(..generator, worker_id: worker_id)
+pub fn with_worker_id(state: State, worker_id: Int) -> State {
+  State(..state, worker_id: worker_id)
 }
 
 /// Sets the process ID for the generator.
-pub fn with_process_id(generator: Generator, process_id: Int) -> Generator {
-  Generator(..generator, process_id: process_id)
+pub fn with_process_id(state: State, process_id: Int) -> State {
+  State(..state, process_id: process_id)
 }
 
 /// Starts the generator.
-pub fn start(generator: Generator) -> Result(Subject, String) {
-  case generator.epoch > erlang.system_time(erlang.Millisecond) {
+pub fn start(state: State) -> Result(Generator, String) {
+  case state.epoch > erlang.system_time(erlang.Millisecond) {
     True -> Error("epoch must be in the past")
     False -> {
-      let generator =
-        Generator(..generator, last_ts: generator |> get_timestamp)
+      let state = State(..state, last_ts: state |> get_timestamp)
 
-      generator
+      state
       |> actor.start(handle_message)
       |> result.map_error(fn(e) {
         "could not start actor: " <> e |> string.inspect()
@@ -85,17 +92,19 @@ pub fn start(generator: Generator) -> Result(Subject, String) {
 ///
 /// let epoch = 1_420_070_400_000
 /// let worker_id = 12
+/// let process_id = 1
 ///
 /// let assert Ok(generator) =
 ///   snowgleam.new_generator()
 ///   |> snowgleam.with_epoch(epoch)
 ///   |> snowgleam.with_worker_id(worker_id)
+///   |> snowgleam.with_process_id(process_id)
 ///   |> snowgleam.start()
 ///
 /// let id = snowgleam.generate(generator)
 /// ```
-pub fn generate(channel: Subject) -> Int {
-  actor.call(channel, Generate, 10)
+pub fn generate(state: Generator) -> Int {
+  actor.call(state, Generate, 10)
 }
 
 /// Extracts the timestamp from a Snowflake ID using the provided epoch.
@@ -114,43 +123,40 @@ pub fn process_id(id: Int) -> Int {
 }
 
 /// Actor message handler.
-fn handle_message(
-  message: Message,
-  generator: Generator,
-) -> actor.Next(Message, Generator) {
+fn handle_message(message: Message, state: State) -> actor.Next(Message, State) {
   case message {
     Generate(reply) -> {
-      let generator = generator |> setup
-      let id = generator |> generate_id
+      let state = state |> setup
+      let id = state |> generate_id
       actor.send(reply, id)
-      actor.continue(generator)
+      actor.continue(state)
     }
   }
 }
 
 /// Generates a new Snowflake ID.
-fn generate_id(generator: Generator) -> Int {
-  int.bitwise_shift_left(generator.last_ts, 22)
-  |> int.bitwise_or(int.bitwise_shift_left(generator.worker_id, 17))
-  |> int.bitwise_or(int.bitwise_shift_left(generator.process_id, 12))
-  |> int.bitwise_or(generator.index)
+fn generate_id(state: State) -> Int {
+  int.bitwise_shift_left(state.last_ts, 22)
+  |> int.bitwise_or(int.bitwise_shift_left(state.worker_id, 17))
+  |> int.bitwise_or(int.bitwise_shift_left(state.process_id, 12))
+  |> int.bitwise_or(state.index)
 }
 
-/// Sets up the generator before generating a new ID.
+/// Sets up the state before generating a new ID.
 /// Handles the case where multiple IDs are generated in the same millisecond.  
 /// It wait for the next millisecond if the 4096 were already generated.
-fn setup(generator: Generator) -> Generator {
-  let timestamp = generator |> get_timestamp
-  case generator {
-    Generator(last_ts: lts, index: i, ..) if lts == timestamp && i < max_index -> {
-      Generator(..generator, index: i + 1)
+fn setup(state: State) -> State {
+  let timestamp = state |> get_timestamp
+  case state {
+    State(last_ts: lts, index: i, ..) if lts == timestamp && i < max_index -> {
+      State(..state, index: i + 1)
     }
-    Generator(last_ts: lts, ..) if lts == timestamp -> generator |> setup
-    _ -> Generator(..generator, index: 0, last_ts: timestamp)
+    State(last_ts: lts, ..) if lts == timestamp -> state |> setup
+    _ -> State(..state, index: 0, last_ts: timestamp)
   }
 }
 
 /// Gets the current timestamp using erlang os:system_time/1.
-fn get_timestamp(generator: Generator) -> Int {
-  erlang.system_time(erlang.Millisecond) |> int.subtract(generator.epoch)
+fn get_timestamp(state: State) -> Int {
+  erlang.system_time(erlang.Millisecond) |> int.subtract(state.epoch)
 }
