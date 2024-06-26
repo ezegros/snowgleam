@@ -76,12 +76,55 @@ pub fn snowgeam_generate_lazy_test() {
 pub fn snowgleam_generate_lazy_with_set_timestamp_test() {
   let assert Ok(generator) =
     snowgleam.new_generator()
-    |> snowgleam.with_timestamp(1_420_070_400_000)
+    |> snowgleam.with_timestamp(1_719_440_739_000)
     |> snowgleam.start()
 
   let id = generator |> snowgleam.generate_lazy()
 
-  should.equal(id |> int.to_string(), "550441269457846272")
+  id |> int.to_string() |> string.length() |> should.equal(19)
+  should.equal(id |> int.to_string(), "1806091479806902272")
+
+  generator |> snowgleam.stop()
+}
+
+pub fn snowgleam_generate_many_test() {
+  let assert Ok(generator) = snowgleam.new_generator() |> snowgleam.start()
+
+  let ids = generator |> snowgleam.generate_many(5000)
+
+  ids |> list.unique() |> list.length() |> should.equal(5000)
+  let assert Ok(last_id) = ids |> list.last()
+
+  last_id |> int.to_string() |> string.length() |> should.equal(19)
+  should.be_true(
+    last_id |> snowgleam.timestamp(snowgleam.default_epoch)
+    <= erlang.system_time(erlang.Millisecond),
+  )
+
+  generator |> snowgleam.stop()
+}
+
+pub fn snowgleam_generate_many_lazy_test() {
+  let time = 1_719_440_739_000
+
+  let assert Ok(generator) =
+    snowgleam.new_generator()
+    |> snowgleam.with_timestamp(time)
+    |> snowgleam.with_worker_id(20)
+    |> snowgleam.with_process_id(30)
+    |> snowgleam.start()
+
+  let ids = generator |> snowgleam.generate_many_lazy(5000)
+
+  ids |> list.unique() |> list.length() |> should.equal(5000)
+  let assert Ok(last_id) = ids |> list.last()
+
+  last_id |> int.to_string() |> string.length() |> should.equal(19)
+  should.equal(
+    last_id |> snowgleam.timestamp(snowgleam.default_epoch),
+    time + 1,
+  )
+  should.equal(last_id |> int.to_string(), "1806091479813841799")
 
   generator |> snowgleam.stop()
 }

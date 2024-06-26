@@ -3,6 +3,7 @@
 import gleam/erlang
 import gleam/erlang/process
 import gleam/int
+import gleam/list
 import gleam/otp/actor
 import gleam/result
 import gleam/string
@@ -37,6 +38,8 @@ pub opaque type Generator {
 pub opaque type Message {
   Generate(reply_with: process.Subject(Int))
   GenerateLazy(reply_with: process.Subject(Int))
+  GenerateMany(Int, process.Subject(List(Int)))
+  GenerateManyLazy(Int, process.Subject(List(Int)))
   Shutdown
 }
 
@@ -125,6 +128,32 @@ pub fn generate_lazy(generator: Generator) -> Int {
   actor.call(generator.subject, GenerateLazy, 10)
 }
 
+/// Generates many Snowflake IDs.
+///
+/// # Examples
+/// ```gleam
+/// import gleam/snowgleam
+///
+/// let assert Ok(generator) = snowgleam.new_generator() |> snowgleam.start()
+/// let ids = snowgleam.generate_many(generator, 5000)
+/// ```
+pub fn generate_many(generator: Generator, count: Int) -> List(Int) {
+  actor.call(generator.subject, GenerateMany(count, _), 100)
+}
+
+/// Generates many Snowflake IDs lazily.
+/// 
+/// # Examples
+/// ```gleam
+/// import gleam/snowgleam
+///
+/// let assert Ok(generator) = snowgleam.new_generator() |> snowgleam.start()
+/// let ids = snowgleam.generate_many_lazy(generator, 5000)
+/// ```
+pub fn generate_many_lazy(generator: Generator, count: Int) -> List(Int) {
+  actor.call(generator.subject, GenerateManyLazy(count, _), 100)
+}
+
 /// Stops the generator.
 pub fn stop(generator: Generator) {
   actor.send(generator.subject, Shutdown)
@@ -145,6 +174,17 @@ fn handle_message(message: Message, node: Node) -> actor.Next(Message, Node) {
       actor.send(reply, id)
       actor.continue(node)
     }
+    GenerateMany(count, reply) -> {
+      let node = node |> setup
+      let #(node, ids) = node |> generate_ids(count)
+      actor.send(reply, ids |> list.reverse())
+      actor.continue(node)
+    }
+    GenerateManyLazy(count, reply) -> {
+      let #(node, ids) = node |> generate_ids(count)
+      actor.send(reply, ids |> list.reverse())
+      actor.continue(node)
+    }
     Shutdown -> actor.Stop(process.Normal)
   }
 }
@@ -155,6 +195,19 @@ fn generate_id(node: Node) -> Int {
   |> int.bitwise_or(int.bitwise_shift_left(node.worker_id, 17))
   |> int.bitwise_or(int.bitwise_shift_left(node.process_id, 12))
   |> int.bitwise_or(node.index)
+}
+
+/// Generates many Snowflake IDs.
+fn generate_ids(node: Node, count: Int) -> #(Node, List(Int)) {
+  case count {
+    0 -> #(node, [])
+    _ -> {
+      let node = node |> lazy_setup
+      let id = node |> generate_id
+      let #(node, ids) = node |> generate_ids(count - 1)
+      #(node, list.append(ids, [id]))
+    }
+  }
 }
 
 /// Sets up the node before generating a new ID.

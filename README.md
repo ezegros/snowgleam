@@ -31,5 +31,7 @@ pub fn main() {
 - Simple ID generation
 - Lazy ID generation
 - Lazy ID generation with custom timestamp (useful for backfilling)
+- Batch ID generation
+- Batch Lazy ID generation
 
 Further documentation can be found at <https://hexdocs.pm/snowgleam>.
