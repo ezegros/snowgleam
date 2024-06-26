@@ -7,7 +7,7 @@ import gleam/otp/actor
 import gleam/result
 import gleam/string
 
-/// The default epoch for the generator. Corresponds to the Unix epoch.
+/// The default epoch for the generator. Corresponds to the Twitter epoch.
 pub const default_epoch: Int = 1_288_834_974_657
 
 /// The maximum number of IDs that can be generated in a single millisecond.
