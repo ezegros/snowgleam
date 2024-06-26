@@ -41,3 +41,12 @@ pub fn snowgleam_generate_multiple_test() {
   |> list.length()
   |> should.equal(5000)
 }
+
+pub fn snowgleam_generate_future_epoch_test() {
+  let epoch = erlang.system_time(erlang.Millisecond) + 1000
+
+  snowgleam.new_generator()
+  |> snowgleam.with_epoch(epoch)
+  |> snowgleam.start()
+  |> should.be_error()
+}
