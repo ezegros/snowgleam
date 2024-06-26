@@ -176,7 +176,7 @@ fn setup(node: Node) -> Node {
 /// all the 4096 of every millisecond before moving to the next one.
 /// It may be faster and useful in some cases.
 fn lazy_setup(node: Node) -> Node {
-  let i = node.index + 1 % max_index
+  let i = { node.index + 1 } % max_index
   case i {
     i if i == 0 && node.index != -1 ->
       Node(..node, index: i, last_ts: node.last_ts + 1)
