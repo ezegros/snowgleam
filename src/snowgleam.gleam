@@ -13,8 +13,9 @@ pub const default_epoch: Int = 1_288_834_974_657
 /// The maximum number of IDs that can be generated in a single millisecond.
 const max_index: Int = 4096
 
-/// Type alias for the genarator message subject. It is the actual
+/// Type of the generator. It is the actual
 /// public interface for the generator and should be used to interact with it.
+/// It holds the actor subject that is used to handle the generator state.
 ///
 /// # Examples
 /// ```gleam
@@ -28,8 +29,9 @@ const max_index: Int = 4096
 /// let context = Context(generator: generator)
 /// let id = context.generator |> snowgleam.generate()
 /// ```
-pub type Generator =
-  process.Subject(Message)
+pub opaque type Generator {
+  Generator(subject: process.Subject(Message))
+}
 
 /// The messages that the generator can receive.
 pub opaque type Message {
@@ -84,6 +86,7 @@ pub fn start(node: Node) -> Result(Generator, String) {
       |> result.map_error(fn(e) {
         "could not start actor: " <> e |> string.inspect()
       })
+      |> result.map(Generator)
     }
   }
 }
@@ -107,8 +110,8 @@ pub fn start(node: Node) -> Result(Generator, String) {
 ///
 /// let id = snowgleam.generate(generator)
 /// ```
-pub fn generate(node: Generator) -> Int {
-  actor.call(node, Generate, 10)
+pub fn generate(generator: Generator) -> Int {
+  actor.call(generator.subject, Generate, 10)
 }
 
 /// Generates a new Snowflake ID lazily.
@@ -117,8 +120,8 @@ pub fn generate(node: Generator) -> Int {
 /// It may be faster and useful in some cases than the `generate` function.
 /// For example, to generate a batch of IDs or to generate IDs for a particular
 /// time.
-pub fn generate_lazy(node: Generator) -> Int {
-  actor.call(node, GenerateLazy, 10)
+pub fn generate_lazy(generator: Generator) -> Int {
+  actor.call(generator.subject, GenerateLazy, 10)
 }
 
 /// Actor message handler.
