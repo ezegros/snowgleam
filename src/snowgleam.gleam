@@ -8,7 +8,7 @@ import gleam/result
 import gleam/string
 
 /// The default epoch for the generator. Corresponds to the Unix epoch.
-pub const default_epoch: Int = 31_546_800
+pub const default_epoch: Int = 1_288_834_974_657
 
 /// The maximum number of IDs that can be generated in a single millisecond.
 const max_index: Int = 4096
