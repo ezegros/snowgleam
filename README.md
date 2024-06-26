@@ -1,5 +1,8 @@
 # Snowgleam ❄️
 
+[![Package Version](https://img.shields.io/hexpm/v/snowgleam)](https://hex.pm/packages/snowgleam)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/snowgleam/)
+
 Gleam version of the Twitter's [snowflake](https://github.com/twitter-archive/snowflake/tree/snowflake-2010) format for unique IDs.
 Although it is more inspired by the Discord [implementation](https://discord.com/developers/docs/reference#snowflakes) of the snowflake format.
 
