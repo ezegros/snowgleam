@@ -24,4 +24,10 @@ pub fn main() {
 }
 ```
 
+## Features
+- Setup with a custom epoch
+- Simple ID generation
+- Lazy ID generation
+- Lazy ID generation with custom timestamp (useful for backfilling)
+
 Further documentation can be found at <https://hexdocs.pm/snowgleam>.
