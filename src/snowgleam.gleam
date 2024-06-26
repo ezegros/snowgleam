@@ -37,6 +37,7 @@ pub opaque type Generator {
 pub opaque type Message {
   Generate(reply_with: process.Subject(Int))
   GenerateLazy(reply_with: process.Subject(Int))
+  Shutdown
 }
 
 /// The Snowflake ID generator node.
@@ -124,6 +125,11 @@ pub fn generate_lazy(generator: Generator) -> Int {
   actor.call(generator.subject, GenerateLazy, 10)
 }
 
+/// Stops the generator.
+pub fn stop(generator: Generator) {
+  actor.send(generator.subject, Shutdown)
+}
+
 /// Actor message handler.
 fn handle_message(message: Message, node: Node) -> actor.Next(Message, Node) {
   case message {
@@ -139,6 +145,7 @@ fn handle_message(message: Message, node: Node) -> actor.Next(Message, Node) {
       actor.send(reply, id)
       actor.continue(node)
     }
+    Shutdown -> actor.Stop(process.Normal)
   }
 }
 

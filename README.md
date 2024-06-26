@@ -21,6 +21,8 @@ pub fn main() {
   let assert Ok(generator) = snowgleam.new_generator() |> snowgleam.start()
   let id = generator |> snowgleam.generate()
   io.println("Generated ID: " <> id |> int.to_string())
+
+  generator |> snowgleam.stop()
 }
 ```
 

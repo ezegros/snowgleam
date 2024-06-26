@@ -30,6 +30,8 @@ pub fn snowgleam_generate_test() {
   should.be_true(ts <= erlang.system_time(erlang.Millisecond))
   id |> snowgleam.worker_id |> should.equal(worker_id)
   id |> snowgleam.process_id |> should.equal(process_id)
+
+  generator |> snowgleam.stop()
 }
 
 pub fn snowgleam_generate_multiple_test() {
@@ -40,6 +42,8 @@ pub fn snowgleam_generate_multiple_test() {
   |> list.unique()
   |> list.length()
   |> should.equal(5000)
+
+  generator |> snowgleam.stop()
 }
 
 pub fn snowgleam_generate_future_epoch_test() {
@@ -65,6 +69,8 @@ pub fn snowgeam_generate_lazy_test() {
   |> list.unique()
   |> list.length()
   |> should.equal(5000)
+
+  generator |> snowgleam.stop()
 }
 
 pub fn snowgleam_generate_lazy_with_set_timestamp_test() {
@@ -76,4 +82,6 @@ pub fn snowgleam_generate_lazy_with_set_timestamp_test() {
   let id = generator |> snowgleam.generate_lazy()
 
   should.equal(id |> int.to_string(), "550441269457846272")
+
+  generator |> snowgleam.stop()
 }
