@@ -34,6 +34,7 @@ pub type Generator =
 /// The messages that the generator can receive.
 pub opaque type Message {
   Generate(reply_with: process.Subject(Int))
+  GenerateLazy(reply_with: process.Subject(Int))
 }
 
 /// The Snowflake ID generator node.
@@ -101,19 +102,14 @@ pub fn generate(node: Generator) -> Int {
   actor.call(node, Generate, 10)
 }
 
-/// Extracts the timestamp from a Snowflake ID using the provided epoch.
-pub fn timestamp(id: Int, epoch: Int) -> Int {
-  id |> int.bitwise_shift_right(22) |> int.add(epoch)
-}
-
-/// Extracts the worker ID from a Snowflake ID.
-pub fn worker_id(id: Int) -> Int {
-  id |> int.bitwise_and(0x3E0000) |> int.bitwise_shift_right(17)
-}
-
-/// Extracts the process ID from a Snowflake ID.
-pub fn process_id(id: Int) -> Int {
-  id |> int.bitwise_and(0x1F000) |> int.bitwise_shift_right(12)
+/// Generates a new Snowflake ID lazily.
+/// It works like the `generate` function but it does not uses the current
+/// timestamp, instead it consumes all the 4096 IDs of every millisecond.
+/// It may be faster and useful in some cases than the `generate` function.
+/// For example, to generate a batch of IDs or to generate IDs for a particular
+/// time.
+pub fn generate_lazy(node: Generator) -> Int {
+  actor.call(node, GenerateLazy, 10)
 }
 
 /// Actor message handler.
@@ -121,6 +117,12 @@ fn handle_message(message: Message, node: Node) -> actor.Next(Message, Node) {
   case message {
     Generate(reply) -> {
       let node = node |> setup
+      let id = node |> generate_id
+      actor.send(reply, id)
+      actor.continue(node)
+    }
+    GenerateLazy(reply) -> {
+      let node = node |> lazy_setup
       let id = node |> generate_id
       actor.send(reply, id)
       actor.continue(node)
@@ -148,6 +150,34 @@ fn setup(node: Node) -> Node {
     Node(last_ts: lts, ..) if lts == timestamp -> node |> setup
     _ -> Node(..node, index: 0, last_ts: timestamp)
   }
+}
+
+/// Lazily sets up the node before generating a new ID.
+/// It does not uses current timestamp to generate the next ID. It consumes
+/// all the 4096 of every millisecond before moving to the next one.
+/// It may be faster and useful in some cases.
+fn lazy_setup(node: Node) -> Node {
+  let i = node.index + 1 % max_index
+  case i {
+    i if i == 0 && node.index != -1 ->
+      Node(..node, index: i, last_ts: node.last_ts + 1)
+    _ -> Node(..node, index: i)
+  }
+}
+
+/// Extracts the timestamp from a Snowflake ID using the provided epoch.
+pub fn timestamp(id: Int, epoch: Int) -> Int {
+  id |> int.bitwise_shift_right(22) |> int.add(epoch)
+}
+
+/// Extracts the worker ID from a Snowflake ID.
+pub fn worker_id(id: Int) -> Int {
+  id |> int.bitwise_and(0x3E0000) |> int.bitwise_shift_right(17)
+}
+
+/// Extracts the process ID from a Snowflake ID.
+pub fn process_id(id: Int) -> Int {
+  id |> int.bitwise_and(0x1F000) |> int.bitwise_shift_right(12)
 }
 
 /// Gets the current timestamp using erlang os:system_time/1.

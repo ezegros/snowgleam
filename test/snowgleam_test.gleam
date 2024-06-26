@@ -50,3 +50,19 @@ pub fn snowgleam_generate_future_epoch_test() {
   |> snowgleam.start()
   |> should.be_error()
 }
+
+pub fn snowgeam_generate_lazy_test() {
+  let assert Ok(generator) = snowgleam.new_generator() |> snowgleam.start()
+
+  let id = generator |> snowgleam.generate_lazy()
+
+  id |> int.to_string() |> string.length() |> should.equal(19)
+  let ts = id |> snowgleam.timestamp(snowgleam.default_epoch)
+  should.be_true(ts <= erlang.system_time(erlang.Millisecond))
+
+  list.range(1, 5000)
+  |> list.map(fn(_) { generator |> snowgleam.generate_lazy() })
+  |> list.unique()
+  |> list.length()
+  |> should.equal(5000)
+}
